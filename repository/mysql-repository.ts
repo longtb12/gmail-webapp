@@ -1,21 +1,20 @@
 import { IRepository } from "./repository.interface";
-import mysql, { ConnectionOptions, Connection } from "mysql2/promise";
+import mysql, { Pool, PoolOptions } from "mysql2/promise";
 import { EmailMessage } from "@/types/gmail";
 import dotenv from "dotenv";
 
 export class MySQLRepository<T> implements IRepository<T> {
-  private connection!: Connection;
+  private pool!: Pool;
 
   constructor(
     private tableName: string,
-    private config: ConnectionOptions
-  ) {}
+    private config: PoolOptions
+  ) {
+    this.pool = mysql.createPool(this.config);
+  }
 
-  private async getConnection(): Promise<Connection> {
-    if (!this.connection) {
-      this.connection = await mysql.createConnection(this.config);
-    }
-    return this.connection;
+  private async getConnection(){
+    return this.pool;
   }
 
   async findAll(options?: { limit?: number; offset?: number }): Promise<T[]> {
@@ -71,11 +70,14 @@ export class MySQLRepository<T> implements IRepository<T> {
 }
 
 // Define your MySQL config here
-const mysqlConfig: ConnectionOptions = {
+const mysqlConfig: PoolOptions = {
   host: process.env.MYSQL_HOST,
   user: process.env.MYSQL_USER,
   password: process.env.MYSQL_PASSWORD,
-  database: process.env.MYSQL_DATABASE
+  database: process.env.MYSQL_DATABASE,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0,
 };
 
 // Export a ready-to-use Email repository instance
